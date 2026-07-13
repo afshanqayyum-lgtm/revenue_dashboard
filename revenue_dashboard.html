@@ -80,11 +80,13 @@ function renderMatrix() {
   function getActual(m, rowKey) {
     const yr = parseInt(m.split(' ')[1]);
     if (groupBy === 'channel') {
-      // rowKey is __NH__, __EA__, or individual channel
       if (mxPG !== 'all') {
-        // Use ch×pg actual
-        const v = DATA.monthly_ch_pg_actual[m]?.[rowKey]?.[mxPG] || 0;
-        return v;
+        // approximate using ch×pg — only available for __NH__/__EA__
+        // for individual channels use proportion
+        const total = DATA.monthly[m]?.actual || 1;
+        const chAct = DATA.monthly_by_channel[m]?.[rowKey]?.actual || 0;
+        const pgAct = DATA.monthly_by_product_group[m]?.[mxPG]?.actual || 0;
+        return total > 0 ? Math.round(chAct * pgAct / total) : 0;
       }
       return DATA.monthly_by_channel[m]?.[rowKey]?.actual || 0;
     }
@@ -106,7 +108,11 @@ function renderMatrix() {
   function getTarget(m, rowKey) {
     if (groupBy === 'channel') {
       if (mxPG !== 'all') {
-        return DATA.monthly_ch_pg_target[m]?.[rowKey]?.[mxPG] || 0;
+        // approximate for individual channels
+        const total = DATA.monthly[m]?.target || 1;
+        const chTgt = DATA.monthly_by_channel[m]?.[rowKey]?.target || 0;
+        const pgTgt = DATA.monthly_by_product_group[m]?.[mxPG]?.target || 0;
+        return total > 0 ? Math.round(chTgt * pgTgt / total) : 0;
       }
       return DATA.monthly_by_channel[m]?.[rowKey]?.target || 0;
     }
@@ -123,12 +129,12 @@ function renderMatrix() {
   // Build row definitions
   let rows = [];
   if (groupBy === 'channel') {
-    rows = [
-      {key:'__NH__', label:'NH'},
-      {key:'__EA__', label:'EA'},
-    ];
-    if (mxCh === 'nh') rows = [{key:'__NH__', label:'NH'}];
-    if (mxCh === 'ea') rows = [{key:'__EA__', label:'EA'}];
+    const NH_CHANS = ['NH Corporate','NH SME'];
+    const EA_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+    let allChs = [...NH_CHANS, ...EA_CHANS];
+    if (mxCh === 'nh') allChs = NH_CHANS;
+    if (mxCh === 'ea') allChs = EA_CHANS;
+    rows = allChs.filter(ch => DATA.channels.includes(ch)).map(ch => ({key:ch, label:ch}));
   } else if (groupBy === 'pg') {
     let pgList = pgs;
     if (mxPG !== 'all') pgList = pgList.filter(p => p === mxPG);
@@ -183,17 +189,17 @@ function renderMatrix() {
       ${actuals.map((a,i) => {
         const p = targets[i] > 0 ? pct(a, targets[i]) : -1;
         const bg = p >= 100 ? 'rgba(22,163,74,.12)' : p >= 80 ? 'rgba(217,119,6,.12)' : p >= 0 ? 'rgba(220,38,38,.10)' : 'transparent';
-        return `<td class="rev-cell" style="background:${bg}">${fmtK(a)}</td>`;
+        return `<td class="rev-cell" style="background:${bg}">${fmt(a)}</td>`;
       }).join('')}
-      <td class="rev-cell">${fmtK(totAct)}</td>
+      <td class="rev-cell">${fmt(totAct)}</td>
     </tr>`;
 
     // Target row
     if (hasTargets) {
       tbody += `<tr class="target-row">
         <td class="row-type">Target</td>
-        ${targets.map(t => `<td class="tgt-cell">${t > 0 ? fmtK(t) : '—'}</td>`).join('')}
-        <td class="tgt-cell">${totTgt > 0 ? fmtK(totTgt) : '—'}</td>
+        ${targets.map(t => `<td class="tgt-cell">${t > 0 ? fmt(t) : '—'}</td>`).join('')}
+        <td class="tgt-cell">${totTgt > 0 ? fmt(totTgt) : '—'}</td>
       </tr>`;
     }
   });
@@ -206,15 +212,15 @@ function renderMatrix() {
     ${totActuals.map((a,i) => {
       const p = totTargets[i] > 0 ? pct(a, totTargets[i]) : -1;
       const bg = p >= 100 ? 'rgba(22,163,74,.12)' : p >= 80 ? 'rgba(217,119,6,.12)' : p >= 0 ? 'rgba(220,38,38,.10)' : 'transparent';
-      return `<td class="rev-cell" style="background:${bg}">${fmtK(a)}</td>`;
+      return `<td class="rev-cell" style="background:${bg}">${fmt(a)}</td>`;
     }).join('')}
-    <td class="rev-cell">${fmtK(grandActual)}</td>
+    <td class="rev-cell">${fmt(grandActual)}</td>
   </tr>`;
   if (hasTargets) {
     tbody += `<tr class="total-row" style="font-weight:400;">
       <td colspan="2" style="color:var(--muted);font-size:11px;">Target</td>
-      ${totTargets.map(t => `<td class="tgt-cell">${t>0?fmtK(t):'—'}</td>`).join('')}
-      <td class="tgt-cell">${grandTarget>0?fmtK(grandTarget):'—'}</td>
+      ${totTargets.map(t => `<td class="tgt-cell">${t>0?fmt(t):'—'}</td>`).join('')}
+      <td class="tgt-cell">${grandTarget>0?fmt(grandTarget):'—'}</td>
     </tr>`;
   }
   tbody += '</tbody>';
@@ -1222,11 +1228,13 @@ function renderMatrix() {
   function getActual(m, rowKey) {
     const yr = parseInt(m.split(' ')[1]);
     if (groupBy === 'channel') {
-      // rowKey is __NH__, __EA__, or individual channel
       if (mxPG !== 'all') {
-        // Use ch×pg actual
-        const v = DATA.monthly_ch_pg_actual[m]?.[rowKey]?.[mxPG] || 0;
-        return v;
+        // approximate using ch×pg — only available for __NH__/__EA__
+        // for individual channels use proportion
+        const total = DATA.monthly[m]?.actual || 1;
+        const chAct = DATA.monthly_by_channel[m]?.[rowKey]?.actual || 0;
+        const pgAct = DATA.monthly_by_product_group[m]?.[mxPG]?.actual || 0;
+        return total > 0 ? Math.round(chAct * pgAct / total) : 0;
       }
       return DATA.monthly_by_channel[m]?.[rowKey]?.actual || 0;
     }
@@ -1248,7 +1256,11 @@ function renderMatrix() {
   function getTarget(m, rowKey) {
     if (groupBy === 'channel') {
       if (mxPG !== 'all') {
-        return DATA.monthly_ch_pg_target[m]?.[rowKey]?.[mxPG] || 0;
+        // approximate for individual channels
+        const total = DATA.monthly[m]?.target || 1;
+        const chTgt = DATA.monthly_by_channel[m]?.[rowKey]?.target || 0;
+        const pgTgt = DATA.monthly_by_product_group[m]?.[mxPG]?.target || 0;
+        return total > 0 ? Math.round(chTgt * pgTgt / total) : 0;
       }
       return DATA.monthly_by_channel[m]?.[rowKey]?.target || 0;
     }
@@ -1265,12 +1277,12 @@ function renderMatrix() {
   // Build row definitions
   let rows = [];
   if (groupBy === 'channel') {
-    rows = [
-      {key:'__NH__', label:'NH'},
-      {key:'__EA__', label:'EA'},
-    ];
-    if (mxCh === 'nh') rows = [{key:'__NH__', label:'NH'}];
-    if (mxCh === 'ea') rows = [{key:'__EA__', label:'EA'}];
+    const NH_CHANS = ['NH Corporate','NH SME'];
+    const EA_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+    let allChs = [...NH_CHANS, ...EA_CHANS];
+    if (mxCh === 'nh') allChs = NH_CHANS;
+    if (mxCh === 'ea') allChs = EA_CHANS;
+    rows = allChs.filter(ch => DATA.channels.includes(ch)).map(ch => ({key:ch, label:ch}));
   } else if (groupBy === 'pg') {
     let pgList = pgs;
     if (mxPG !== 'all') pgList = pgList.filter(p => p === mxPG);
