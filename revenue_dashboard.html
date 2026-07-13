@@ -223,7 +223,7 @@ function renderMatrix() {
 
     // Revenue row
     tbody += `<tr class="revenue-row">
-      <td class="row-label" rowspan="2">${r.label}</td>
+      <td class="row-label">${r.label}</td>
       <td class="row-type">Revenue</td>
       ${actuals.map((a,i) => {
         const p = targets[i] > 0 ? pct(a, targets[i]) : -1;
@@ -236,6 +236,7 @@ function renderMatrix() {
     // Target row
     if (hasTargets) {
       tbody += `<tr class="target-row">
+        <td class="row-label" style="font-size:11px;color:var(--muted);font-weight:400;"></td>
         <td class="row-type">Target</td>
         ${targets.map(t => `<td class="tgt-cell">${t > 0 ? fmt(t) : '—'}</td>`).join('')}
         <td class="tgt-cell">${totTgt > 0 ? fmt(totTgt) : '—'}</td>
@@ -569,7 +570,7 @@ tr:hover td{background:var(--surface2);}
       </div>
       <div class="ctrl-group">
         <label style="font-size:12px;font-weight:600;color:var(--muted);">Product Group</label>
-        <select id="mx-pg" onchange="renderMatrix()" style="min-width:160px;"></select>
+        <select id="mx-pg" onchange="populateMatrixDropdowns();renderMatrix()" style="min-width:160px;"></select>
       </div>
       <div class="ctrl-group">
         <label style="font-size:12px;font-weight:600;color:var(--muted);">Product</label>
@@ -1416,7 +1417,7 @@ function renderMatrix() {
 
     // Revenue row
     tbody += `<tr class="revenue-row">
-      <td class="row-label" rowspan="2">${r.label}</td>
+      <td class="row-label">${r.label}</td>
       <td class="row-type">Revenue</td>
       ${actuals.map((a,i) => {
         const p = targets[i] > 0 ? pct(a, targets[i]) : -1;
@@ -1429,6 +1430,7 @@ function renderMatrix() {
     // Target row
     if (hasTargets) {
       tbody += `<tr class="target-row">
+        <td class="row-label" style="font-size:11px;color:var(--muted);font-weight:400;"></td>
         <td class="row-type">Target</td>
         ${targets.map(t => `<td class="tgt-cell">${t > 0 ? fmtK(t) : '—'}</td>`).join('')}
         <td class="tgt-cell">${totTgt > 0 ? fmtK(totTgt) : '—'}</td>
