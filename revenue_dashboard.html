@@ -11,12 +11,27 @@
 
 
 // ── Matrix Table View ─────────────────────────────────────────────────────────
+const NH_TYPE_CHANS = ['NH Corporate','NH SME'];
+const EA_TYPE_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+
+function updateMxChannelType() {
+  const mxCh = document.getElementById('mx-channel')?.value || 'all';
+  const el    = document.getElementById('mx-channel-type');
+  if (!el) return;
+  let options = [];
+  if (mxCh === 'nh' || mxCh === 'all') options = options.concat(NH_TYPE_CHANS);
+  if (mxCh === 'ea' || mxCh === 'all') options = options.concat(EA_TYPE_CHANS);
+  options = options.filter(ch => DATA.channels.includes(ch));
+  el.innerHTML = '<option value="all">All</option>' + options.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+}
+
 function initMatrix() {
   // Populate year dropdown
   const yrs = ['2021','2022','2023','2024','2025','2026'];
   const el = document.getElementById('mx-year');
   if (!el) return;
   el.innerHTML = yrs.map(y => `<option value="${y}"${y==='2026'?' selected':''}>${y}</option>`).join('');
+  updateMxChannelType();
   populateMatrixDropdowns();
 }
 
@@ -43,10 +58,12 @@ function populateMatrixDropdowns() {
 }
 
 function resetMatrix() {
-  document.getElementById('mx-channel').value = 'all';
-  document.getElementById('mx-pg').value      = 'all';
-  document.getElementById('mx-product').value = 'all';
-  document.getElementById('mx-groupby').value = 'channel';
+  document.getElementById('mx-channel').value      = 'all';
+  document.getElementById('mx-pg').value           = 'all';
+  document.getElementById('mx-product').value      = 'all';
+  document.getElementById('mx-groupby').value      = 'channel';
+  updateMxChannelType();
+  document.getElementById('mx-channel-type').value = 'all';
   populateMatrixDropdowns();
   renderMatrix();
 }
@@ -56,7 +73,8 @@ function renderMatrix() {
 
   const mxYr    = document.getElementById('mx-year')?.value    || '2026';
   const groupBy = document.getElementById('mx-groupby')?.value || 'channel';
-  const mxCh    = document.getElementById('mx-channel')?.value || 'all';
+  const mxCh     = document.getElementById('mx-channel')?.value || 'all';
+  const mxChType = document.getElementById('mx-channel-type')?.value || 'all';
   const mxPG    = document.getElementById('mx-pg')?.value      || 'all';
   const mxProd  = document.getElementById('mx-product')?.value || 'all';
 
@@ -141,11 +159,10 @@ function renderMatrix() {
   // Build row definitions
   let rows = [];
   if (groupBy === 'channel') {
-    const NH_CHANS = ['NH Corporate','NH SME'];
-    const EA_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
-    let allChs = [...NH_CHANS, ...EA_CHANS];
-    if (mxCh === 'nh') allChs = NH_CHANS;
-    if (mxCh === 'ea') allChs = EA_CHANS;
+    let allChs = [...NH_TYPE_CHANS, ...EA_TYPE_CHANS];
+    if (mxCh === 'nh') allChs = NH_TYPE_CHANS;
+    if (mxCh === 'ea') allChs = EA_TYPE_CHANS;
+    if (mxChType !== 'all') allChs = [mxChType];
     rows = allChs.filter(ch => DATA.channels.includes(ch)).map(ch => ({key:ch, label:ch}));
   } else if (groupBy === 'pg') {
     let pgList = pgs;
@@ -162,10 +179,10 @@ function renderMatrix() {
       });
     });
     // Filter to products with revenue in selected channel
-    if (mxCh !== 'all') {
-      const NH = ['NH Corporate','NH SME'];
-      const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
-      const chs = mxCh === 'nh' ? NH : EA;
+    if (mxChType !== 'all') {
+      prods = prods.filter(p => months.some(m => (DATA.monthly_ch_product_actual?.[m]?.[mxChType]?.[p] || 0) > 0));
+    } else if (mxCh !== 'all') {
+      const chs = mxCh === 'nh' ? NH_TYPE_CHANS : EA_TYPE_CHANS;
       prods = prods.filter(p => months.some(m => {
         const chData = DATA.monthly_ch_product_actual?.[m];
         return chData && chs.some(ch => (chData[ch]?.[p] || 0) > 0);
@@ -537,11 +554,17 @@ tr:hover td{background:var(--surface2);}
         </select>
       </div>
       <div class="ctrl-group">
-        <label style="font-size:12px;font-weight:600;color:var(--muted);">Channel</label>
-        <select id="mx-channel" onchange="renderMatrix()" style="min-width:120px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);">Sales Channel</label>
+        <select id="mx-channel" onchange="updateMxChannelType();renderMatrix()" style="min-width:120px;">
           <option value="all">All</option>
           <option value="nh">NH</option>
           <option value="ea">EA</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);">Sales Channel Type</label>
+        <select id="mx-channel-type" onchange="renderMatrix()" style="min-width:160px;">
+          <option value="all">All</option>
         </select>
       </div>
       <div class="ctrl-group">
@@ -1181,12 +1204,27 @@ render();
 
 
 // ── Matrix Table View ─────────────────────────────────────────────────────────
+const NH_TYPE_CHANS = ['NH Corporate','NH SME'];
+const EA_TYPE_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+
+function updateMxChannelType() {
+  const mxCh = document.getElementById('mx-channel')?.value || 'all';
+  const el    = document.getElementById('mx-channel-type');
+  if (!el) return;
+  let options = [];
+  if (mxCh === 'nh' || mxCh === 'all') options = options.concat(NH_TYPE_CHANS);
+  if (mxCh === 'ea' || mxCh === 'all') options = options.concat(EA_TYPE_CHANS);
+  options = options.filter(ch => DATA.channels.includes(ch));
+  el.innerHTML = '<option value="all">All</option>' + options.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+}
+
 function initMatrix() {
   // Populate year dropdown
   const yrs = ['2021','2022','2023','2024','2025','2026'];
   const el = document.getElementById('mx-year');
   if (!el) return;
   el.innerHTML = yrs.map(y => `<option value="${y}"${y==='2026'?' selected':''}>${y}</option>`).join('');
+  updateMxChannelType();
   populateMatrixDropdowns();
 }
 
@@ -1213,10 +1251,12 @@ function populateMatrixDropdowns() {
 }
 
 function resetMatrix() {
-  document.getElementById('mx-channel').value = 'all';
-  document.getElementById('mx-pg').value      = 'all';
-  document.getElementById('mx-product').value = 'all';
-  document.getElementById('mx-groupby').value = 'channel';
+  document.getElementById('mx-channel').value      = 'all';
+  document.getElementById('mx-pg').value           = 'all';
+  document.getElementById('mx-product').value      = 'all';
+  document.getElementById('mx-groupby').value      = 'channel';
+  updateMxChannelType();
+  document.getElementById('mx-channel-type').value = 'all';
   populateMatrixDropdowns();
   renderMatrix();
 }
@@ -1226,7 +1266,8 @@ function renderMatrix() {
 
   const mxYr    = document.getElementById('mx-year')?.value    || '2026';
   const groupBy = document.getElementById('mx-groupby')?.value || 'channel';
-  const mxCh    = document.getElementById('mx-channel')?.value || 'all';
+  const mxCh     = document.getElementById('mx-channel')?.value || 'all';
+  const mxChType = document.getElementById('mx-channel-type')?.value || 'all';
   const mxPG    = document.getElementById('mx-pg')?.value      || 'all';
   const mxProd  = document.getElementById('mx-product')?.value || 'all';
 
@@ -1311,11 +1352,10 @@ function renderMatrix() {
   // Build row definitions
   let rows = [];
   if (groupBy === 'channel') {
-    const NH_CHANS = ['NH Corporate','NH SME'];
-    const EA_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
-    let allChs = [...NH_CHANS, ...EA_CHANS];
-    if (mxCh === 'nh') allChs = NH_CHANS;
-    if (mxCh === 'ea') allChs = EA_CHANS;
+    let allChs = [...NH_TYPE_CHANS, ...EA_TYPE_CHANS];
+    if (mxCh === 'nh') allChs = NH_TYPE_CHANS;
+    if (mxCh === 'ea') allChs = EA_TYPE_CHANS;
+    if (mxChType !== 'all') allChs = [mxChType];
     rows = allChs.filter(ch => DATA.channels.includes(ch)).map(ch => ({key:ch, label:ch}));
   } else if (groupBy === 'pg') {
     let pgList = pgs;
@@ -1332,10 +1372,10 @@ function renderMatrix() {
       });
     });
     // Filter to products with revenue in selected channel
-    if (mxCh !== 'all') {
-      const NH = ['NH Corporate','NH SME'];
-      const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
-      const chs = mxCh === 'nh' ? NH : EA;
+    if (mxChType !== 'all') {
+      prods = prods.filter(p => months.some(m => (DATA.monthly_ch_product_actual?.[m]?.[mxChType]?.[p] || 0) > 0));
+    } else if (mxCh !== 'all') {
+      const chs = mxCh === 'nh' ? NH_TYPE_CHANS : EA_TYPE_CHANS;
       prods = prods.filter(p => months.some(m => {
         const chData = DATA.monthly_ch_product_actual?.[m];
         return chData && chs.some(ch => (chData[ch]?.[p] || 0) > 0);
