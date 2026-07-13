@@ -272,32 +272,51 @@ tr:hover td{background:var(--surface2);}
 
 <!-- MATRIX TABLE VIEW -->
 <div class="view" id="view-matrix">
-  <div class="chart-card" style="max-width:100%;">
-    <div class="chart-header">
-      <div><div class="chart-title">Revenue Table</div><div class="chart-sub" id="matrixSubtitle">All channels · All products · 2026</div></div>
+
+  <!-- Year filter -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    <div class="ctrl-group">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);">Year</label>
+      <select id="mx-year" onchange="renderAllTables()" style="min-width:90px;"></select>
     </div>
-    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;">
-      <div class="ctrl-group"><label style="font-size:11px;font-weight:600;color:var(--muted);">Year</label>
-        <select id="mx-year" onchange="renderMatrix()" style="min-width:80px;"></select></div>
-      <div class="ctrl-group"><label style="font-size:11px;font-weight:600;color:var(--muted);">Sales Channel</label>
-        <select id="mx-channel" onchange="updateMxChannelType();renderMatrix()" style="min-width:110px;">
-          <option value="all">All</option><option value="nh">NH</option><option value="ea">EA</option>
-        </select></div>
-      <div class="ctrl-group"><label style="font-size:11px;font-weight:600;color:var(--muted);">Sales Channel Type</label>
-        <select id="mx-channel-type" onchange="renderMatrix()" style="min-width:150px;"></select></div>
-      <div class="ctrl-group"><label style="font-size:11px;font-weight:600;color:var(--muted);">Product Group</label>
-        <select id="mx-pg" onchange="updateMxProducts();renderMatrix()" style="min-width:150px;"></select></div>
-      <div class="ctrl-group"><label style="font-size:11px;font-weight:600;color:var(--muted);">Product</label>
-        <select id="mx-product" onchange="renderMatrix()" style="min-width:170px;"></select></div>
-      <button class="tb" onclick="resetMatrix()">Reset</button>
-    </div>
-    <div style="display:flex;gap:16px;margin-bottom:10px;font-size:11px;color:var(--muted);">
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(22,163,74,.2);border-radius:2px;margin-right:4px;"></span>On/over target</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(217,119,6,.2);border-radius:2px;margin-right:4px;"></span>≥80%</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(220,38,38,.15);border-radius:2px;margin-right:4px;"></span>Below 80%</span>
-    </div>
-    <div class="table-wrap" id="matrixTable" style="overflow-x:auto;font-size:13px;"></div>
   </div>
+
+  <!-- Table 1: Sales Channel -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title" style="margin-bottom:12px;">Sales Channel</div>
+    <div class="table-wrap" id="tbl-channel" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
+  <!-- Table 2: Product Group -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title" style="margin-bottom:12px;">Product Group</div>
+    <div class="table-wrap" id="tbl-pg" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
+  <!-- Table 3: Revenue by Product (with PG filter) -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="chart-title">Revenue by Product</div>
+      <div class="ctrl-group">
+        <label style="font-size:11px;font-weight:600;color:var(--muted);">Product Group</label>
+        <select id="mx-prod-pg" onchange="renderTable3()" style="min-width:160px;"></select>
+      </div>
+    </div>
+    <div class="table-wrap" id="tbl-product" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
+  <!-- Table 4: Channel breakdown (with channel type filter) -->
+  <div class="chart-card">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="chart-title">Channel Detail</div>
+      <div class="ctrl-group">
+        <label style="font-size:11px;font-weight:600;color:var(--muted);">Sales Channel Type</label>
+        <select id="mx-ch-detail" onchange="renderTable4()" style="min-width:180px;"></select>
+      </div>
+    </div>
+    <div class="table-wrap" id="tbl-detail" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
 </div>
 </main>
 
@@ -352,7 +371,7 @@ function updateYear()   { yr = document.getElementById('yearSelect').value; rend
 function render() {
   if      (curView==='overview')  renderOverview();
   else if (curView==='monthly')   renderMonthly();
-  else if (curView==='matrix')    renderMatrix();
+  else if (curView==='matrix')    renderAllTables();
 }
 function dc(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
@@ -917,149 +936,194 @@ render();
 
 
 // ── Matrix Table View ─────────────────────────────────────────────────────────
-const NH_TYPE_CHANS = ['NH Corporate','NH SME'];
-const EA_TYPE_CHANS = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
-
-function updateMxChannelType() {
-  const mxCh = document.getElementById('mx-channel')?.value || 'all';
-  const el   = document.getElementById('mx-channel-type');
-  if (!el) return;
-  let opts = [];
-  if (mxCh === 'nh' || mxCh === 'all') opts = opts.concat(NH_TYPE_CHANS);
-  if (mxCh === 'ea' || mxCh === 'all') opts = opts.concat(EA_TYPE_CHANS);
-  opts = opts.filter(ch => DATA.channels.includes(ch));
-  el.innerHTML = '<option value="all">All</option>' + opts.map(ch => `<option value="${ch}">${ch}</option>`).join('');
-}
-
-function updateMxProducts() {
-  const mxPG = document.getElementById('mx-pg')?.value || 'all';
-  const el   = document.getElementById('mx-product');
-  if (!el) return;
-  let prods = DATA.product_names.slice();
-  if (mxPG !== 'all' && PG_TO_PRODUCTS[mxPG]) prods = prods.filter(p => PG_TO_PRODUCTS[mxPG].includes(p));
-  el.innerHTML = '<option value="all">All</option>' + prods.map(p => `<option value="${p}">${p}</option>`).join('');
-}
+const CH_ORDER = ['NH Corporate','NH SME','EA Corporate','EA SME','EA Key','EA Franchise','Overseas','Commercial'];
 
 function initMatrix() {
+  // Year dropdown
   const yrs = ['2021','2022','2023','2024','2025','2026'];
-  const el  = document.getElementById('mx-year');
-  if (!el) return;
-  el.innerHTML = yrs.map(y => `<option value="${y}"${y==='2026'?' selected':''}>${y}</option>`).join('');
-  const pgEl = document.getElementById('mx-pg');
-  if (pgEl) pgEl.innerHTML = '<option value="all">All</option>' + DATA.pgs_2026.map(p => `<option value="${p}">${p}</option>`).join('');
-  updateMxChannelType();
-  updateMxProducts();
+  const yEl = document.getElementById('mx-year');
+  if (!yEl) return;
+  yEl.innerHTML = yrs.map(y=>`<option value="${y}"${y==='2026'?' selected':''}>${y}</option>`).join('');
+
+  // Channel detail dropdown
+  const chEl = document.getElementById('mx-ch-detail');
+  if (chEl) {
+    const chs = [...CH_ORDER].filter(c => DATA.channels.includes(c));
+    chEl.innerHTML = chs.map(c=>`<option value="${c}">${c}</option>`).join('');
+  }
+
+  renderAllTables();
 }
 
-function resetMatrix() {
-  document.getElementById('mx-channel').value      = 'all';
-  document.getElementById('mx-pg').value           = 'all';
-  document.getElementById('mx-product').value      = 'all';
-  updateMxChannelType();
-  document.getElementById('mx-channel-type').value = 'all';
-  updateMxProducts();
-  renderMatrix();
+function renderAllTables() {
+  // Update PG dropdown for table 3
+  const mxYr = document.getElementById('mx-year')?.value || '2026';
+  const pgs  = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  const pgEl = document.getElementById('mx-prod-pg');
+  if (pgEl) {
+    const cur = pgEl.value;
+    pgEl.innerHTML = pgs.map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
+  }
+  renderTable1();
+  renderTable2();
+  renderTable3();
+  renderTable4();
 }
 
-function renderMatrix() {
-  const mxYr     = document.getElementById('mx-year')?.value         || '2026';
-  const mxCh     = document.getElementById('mx-channel')?.value      || 'all';
-  const mxChType = document.getElementById('mx-channel-type')?.value || 'all';
-  const mxPG     = document.getElementById('mx-pg')?.value           || 'all';
-  const mxProd   = document.getElementById('mx-product')?.value      || 'all';
+// ── Shared helpers ────────────────────────────────────────────────────────────
+function mxMonths() {
+  return getYrMonths(document.getElementById('mx-year')?.value || '2026');
+}
 
-  const pgs    = parseInt(mxYr) === 2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
-  const pgEl   = document.getElementById('mx-pg');
-  const curPGV = pgEl?.value || 'all';
-  if (pgEl) pgEl.innerHTML = '<option value="all">All</option>' + pgs.map(p => `<option value="${p}"${p===curPGV?' selected':''}>${p}</option>`).join('');
+function buildTableHTML(rows, months, hasTargets) {
+  const mLabels = months.map(m=>m.split(' ')[0]);
+  const sticky  = 'position:sticky;left:0;z-index:1;';
 
-  const months  = getYrMonths(mxYr);
-  const mLabels = months.map(m => m.split(' ')[0]);
-
-  const parts = [];
-  if (mxCh !== 'all')     parts.push(mxCh.toUpperCase());
-  if (mxChType !== 'all') parts.push(mxChType);
-  if (mxPG !== 'all')     parts.push(mxPG);
-  if (mxProd !== 'all')   parts.push(mxProd);
-  const sub = document.getElementById('matrixSubtitle');
-  if (sub) sub.textContent = (parts.length ? parts.join(' → ') : 'All channels · All products') + ' · ' + mxYr;
-
-  let allChs = [...NH_TYPE_CHANS, ...EA_TYPE_CHANS];
-  if (mxCh === 'nh')      allChs = NH_TYPE_CHANS.slice();
-  if (mxCh === 'ea')      allChs = EA_TYPE_CHANS.slice();
-  if (mxChType !== 'all') allChs = [mxChType];
-  const rows = allChs.filter(ch => DATA.channels.includes(ch)).map(ch => ({key:ch, label:ch}));
-
-  function getActual(m, ch) {
-    if (mxProd !== 'all') return DATA.monthly_ch_product_actual?.[m]?.[ch]?.[mxProd] || 0;
-    if (mxPG !== 'all') {
-      const total = DATA.monthly[m]?.actual || 1;
-      const chAct = DATA.monthly_by_channel[m]?.[ch]?.actual || 0;
-      const pgAct = DATA.monthly_by_product_group[m]?.[mxPG]?.actual || 0;
-      return total > 0 ? Math.round(chAct * pgAct / total) : 0;
-    }
-    return DATA.monthly_by_channel[m]?.[ch]?.actual || 0;
-  }
-
-  function getTarget(m, ch) {
-    if (mxProd !== 'all') return 0;
-    if (mxPG !== 'all') {
-      const total = DATA.monthly[m]?.target || 1;
-      const chTgt = DATA.monthly_by_channel[m]?.[ch]?.target || 0;
-      const pgTgt = DATA.monthly_by_product_group[m]?.[mxPG]?.target || 0;
-      return total > 0 ? Math.round(chTgt * pgTgt / total) : 0;
-    }
-    return DATA.monthly_by_channel[m]?.[ch]?.target || 0;
-  }
-
-  const activeRows = rows.filter(r => months.some(m => getActual(m,r.key)>0 || getTarget(m,r.key)>0));
-  if (!activeRows.length) {
-    document.getElementById('matrixTable').innerHTML = '<p style="color:var(--muted);padding:20px;">No data for this selection.</p>';
-    return;
-  }
-  const hasTargets = activeRows.some(r => months.some(m => getTarget(m,r.key)>0));
-
-  const S = 'position:sticky;z-index:2;background:var(--surface2);';
-  const SC = 'position:sticky;z-index:1;background:var(--card);';
   let thead = `<thead><tr style="background:var(--surface2);">
-    <th style="text-align:left;min-width:160px;${S}left:0;padding:8px 10px;">Channel</th>
-    <th style="text-align:left;width:70px;color:var(--muted);font-size:11px;${S}left:160px;padding:8px 6px;">Type</th>
+    <th style="text-align:left;min-width:160px;${sticky}background:var(--surface2);padding:8px 10px;">Row</th>
+    <th style="text-align:left;width:70px;font-size:11px;color:var(--muted);${sticky}left:160px;background:var(--surface2);padding:8px 6px;">Type</th>
     ${mLabels.map(l=>`<th style="text-align:right;min-width:100px;padding:8px 10px;">${l}</th>`).join('')}
-    <th style="text-align:right;min-width:110px;padding:8px 10px;">Total</th>
-  </tr></thead>`;
+    <th style="text-align:right;min-width:110px;padding:8px 10px;border-left:1px solid var(--border);">Total</th>
+  </tr></thead><tbody>`;
 
-  let tbody='<tbody>';
-  let totA=months.map(()=>0), totT=months.map(()=>0);
-  activeRows.forEach(r => {
-    const acts=months.map(m=>getActual(m,r.key)), tgts=months.map(m=>getTarget(m,r.key));
-    const tA=acts.reduce((s,v)=>s+v,0), tT=tgts.reduce((s,v)=>s+v,0);
-    acts.forEach((v,i)=>totA[i]+=v); tgts.forEach((v,i)=>totT[i]+=v);
-    tbody+=`<tr class="revenue-row">
-      <td class="row-label" style="${SC}left:0;padding:9px 10px;">${r.label}</td>
-      <td class="row-type" style="${SC}left:160px;padding:9px 6px;">Revenue</td>
-      ${acts.map((a,i)=>{const p=tgts[i]>0?pct(a,tgts[i]):-1;const bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';return `<td class="rev-cell" style="background:${bg};padding:9px 10px;">${fmt(a)}</td>`;}).join('')}
-      <td class="rev-cell" style="padding:9px 10px;">${fmt(tA)}</td></tr>`;
-    if(hasTargets) tbody+=`<tr class="target-row">
-      <td style="${SC}left:0;"></td>
-      <td class="row-type" style="${SC}left:160px;padding:5px 6px;">Target</td>
-      ${tgts.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
-      <td class="tgt-cell" style="padding:5px 10px;">${tT>0?fmt(tT):'—'}</td></tr>`;
+  let totA = months.map(()=>0), totT = months.map(()=>0);
+
+  rows.forEach(r => {
+    const isHeader = r.header;
+    const bg = isHeader ? 'background:var(--surface2);' : '';
+    const fw = isHeader ? 'font-weight:700;' : '';
+
+    r.actuals.forEach((v,i)=>{ if(!isHeader) totA[i]+=v; });
+    r.targets.forEach((v,i)=>{ if(!isHeader) totT[i]+=v; });
+
+    const tA = r.actuals.reduce((s,v)=>s+v,0);
+    const tT = r.targets.reduce((s,v)=>s+v,0);
+
+    thead += `<tr class="revenue-row" style="${bg}">
+      <td class="row-label" style="${sticky}${bg}${fw}padding:9px 10px;">${r.label}</td>
+      <td class="row-type" style="${sticky}left:160px;${bg}padding:9px 6px;">${isHeader?'Revenue':'Revenue'}</td>
+      ${r.actuals.map((a,i)=>{
+        const p=r.targets[i]>0?pct(a,r.targets[i]):-1;
+        const cell_bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';
+        return `<td class="rev-cell" style="background:${cell_bg};${fw}padding:9px 10px;">${fmt(a)}</td>`;
+      }).join('')}
+      <td class="rev-cell" style="${fw}padding:9px 10px;border-left:1px solid var(--border);">${fmt(tA)}</td>
+    </tr>`;
+
+    if (hasTargets && !r.hideTarget) {
+      thead += `<tr class="target-row">
+        <td style="${sticky}background:var(--card);"></td>
+        <td class="row-type" style="${sticky}left:160px;background:var(--card);padding:5px 6px;">Target</td>
+        ${r.targets.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
+        <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${tT>0?fmt(tT):'—'}</td>
+      </tr>`;
+    }
   });
+
+  // Total row
   const gA=totA.reduce((s,v)=>s+v,0), gT=totT.reduce((s,v)=>s+v,0);
-  const SF='position:sticky;z-index:1;background:var(--surface2);';
-  tbody+=`<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
-    <td class="row-label" style="${SF}left:0;padding:9px 10px;">Total</td>
-    <td class="row-type" style="${SF}left:160px;padding:9px 6px;">Revenue</td>
+  thead += `<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
+    <td class="row-label" style="${sticky}background:var(--surface2);padding:9px 10px;">Total</td>
+    <td class="row-type" style="${sticky}left:160px;background:var(--surface2);padding:9px 6px;">Revenue</td>
     ${totA.map((a,i)=>{const p=totT[i]>0?pct(a,totT[i]):-1;const bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';return `<td class="rev-cell" style="background:${bg};font-weight:700;padding:9px 10px;">${fmt(a)}</td>`;}).join('')}
-    <td class="rev-cell" style="font-weight:700;padding:9px 10px;">${fmt(gA)}</td></tr>`;
-  if(hasTargets) tbody+=`<tr class="total-row" style="background:var(--surface2);">
-    <td style="${SF}left:0;"></td>
-    <td class="row-type" style="${SF}left:160px;padding:5px 6px;">Target</td>
-    ${totT.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
-    <td class="tgt-cell" style="padding:5px 10px;">${gT>0?fmt(gT):'—'}</td></tr>`;
-  tbody+='</tbody>';
-  document.getElementById('matrixTable').innerHTML=`<table style="width:100%;border-collapse:collapse;">${thead}${tbody}</table>`;
+    <td class="rev-cell" style="font-weight:700;padding:9px 10px;border-left:1px solid var(--border);">${fmt(gA)}</td>
+  </tr>`;
+  if (hasTargets) {
+    thead += `<tr class="total-row" style="background:var(--surface2);">
+      <td style="${sticky}background:var(--surface2);"></td>
+      <td class="row-type" style="${sticky}left:160px;background:var(--surface2);padding:5px 6px;">Target</td>
+      ${totT.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
+      <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${gT>0?fmt(gT):'—'}</td>
+    </tr>`;
+  }
+
+  thead += '</tbody>';
+  return `<table style="width:100%;border-collapse:collapse;">${thead}</table>`;
 }
+
+// ── Table 1: Sales Channel ────────────────────────────────────────────────────
+function renderTable1() {
+  const months = mxMonths();
+  const chs = CH_ORDER.filter(c => DATA.channels.includes(c));
+  const rows = chs.map(ch => ({
+    label:   ch,
+    actuals: months.map(m => DATA.monthly_by_channel[m]?.[ch]?.actual || 0),
+    targets: months.map(m => DATA.monthly_by_channel[m]?.[ch]?.target || 0),
+  })).filter(r => r.actuals.some(v=>v>0) || r.targets.some(v=>v>0));
+
+  const hasTargets = rows.some(r=>r.targets.some(v=>v>0));
+  document.getElementById('tbl-channel').innerHTML = buildTableHTML(rows, months, hasTargets);
+}
+
+// ── Table 2: Product Group ───────────────────────────────────────────────────
+function renderTable2() {
+  const months = mxMonths();
+  const mxYr   = document.getElementById('mx-year')?.value || '2026';
+  const pgs    = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  const rows   = pgs.map(pg => ({
+    label:   pg,
+    actuals: months.map(m => DATA.monthly_by_product_group[m]?.[pg]?.actual || 0),
+    targets: months.map(m => DATA.monthly_by_product_group[m]?.[pg]?.target || 0),
+  }));
+  const hasTargets = rows.some(r=>r.targets.some(v=>v>0));
+  document.getElementById('tbl-pg').innerHTML = buildTableHTML(rows, months, hasTargets);
+}
+
+// ── Table 3: Revenue by Product (filtered by PG) ─────────────────────────────
+function renderTable3() {
+  const months = mxMonths();
+  const selPG  = document.getElementById('mx-prod-pg')?.value || DATA.pgs_2026[0];
+  const prods  = DATA.product_names.filter(p => PG_TO_PRODUCTS[selPG]?.includes(p));
+
+  const rows = prods.map(pn => ({
+    label:   pn,
+    actuals: months.map(m => DATA.monthly_by_product_name[m]?.[pn]?.actual || 0),
+    targets: months.map(()=>0),
+    hideTarget: true,
+  })).filter(r => r.actuals.some(v=>v>0));
+
+  document.getElementById('tbl-product').innerHTML = rows.length
+    ? buildTableHTML(rows, months, false)
+    : '<p style="color:var(--muted);padding:16px;">No data for this product group.</p>';
+}
+
+// ── Table 4: Channel detail (PG headers + products) ──────────────────────────
+function renderTable4() {
+  const months = mxMonths();
+  const mxYr   = document.getElementById('mx-year')?.value || '2026';
+  const ch     = document.getElementById('mx-ch-detail')?.value;
+  if (!ch) return;
+
+  const pgs  = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  const rows = [];
+
+  pgs.forEach(pg => {
+    const pgActuals = months.map(m => DATA.monthly_ch_product_actual?.[m]?.[ch]
+      ? Object.entries(DATA.monthly_ch_product_actual[m][ch])
+          .filter(([pn]) => PG_TO_PRODUCTS[pg]?.includes(pn))
+          .reduce((s,[,v])=>s+v, 0)
+      : 0);
+    const pgTargets = months.map(m => DATA.monthly_ch_pg_target?.[m]?.['__NH__']?.[pg] !== undefined
+      ? (DATA.monthly_ch_pg_target[m]?.['__NH__']?.[pg] || 0) + (DATA.monthly_ch_pg_target[m]?.['__EA__']?.[pg] || 0)
+      : 0);
+
+    // PG header row
+    rows.push({label: pg, actuals: pgActuals, targets: pgTargets, header: true});
+
+    // Product rows
+    const prods = DATA.product_names.filter(p => PG_TO_PRODUCTS[pg]?.includes(p));
+    prods.forEach(pn => {
+      const acts = months.map(m => DATA.monthly_ch_product_actual?.[m]?.[ch]?.[pn] || 0);
+      if (acts.some(v=>v>0)) {
+        rows.push({label: '\u00a0\u00a0\u00a0\u00a0'+pn, actuals: acts, targets: months.map(()=>0), hideTarget:true});
+      }
+    });
+  });
+
+  const hasTargets = rows.filter(r=>!r.header).some(r=>r.targets.some(v=>v>0));
+  document.getElementById('tbl-detail').innerHTML = buildTableHTML(rows, months, hasTargets);
+}
+
 </script>
 
 
