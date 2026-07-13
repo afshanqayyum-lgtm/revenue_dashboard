@@ -100,6 +100,18 @@ function renderMatrix() {
       return pgAct;
     }
     if (groupBy === 'product') {
+      if (mxCh !== 'all') {
+        const chKey = mxCh === 'nh' ? '__NH__' : mxCh === 'ea' ? '__EA__' : null;
+        // Try exact channel key first, fall back to NH/EA group
+        const chData = DATA.monthly_ch_product_actual?.[m];
+        if (chData) {
+          // Find matching channels
+          const NH = ['NH Corporate','NH SME'];
+          const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+          const chs = mxCh === 'nh' ? NH : EA;
+          return chs.reduce((s, ch) => s + (chData[ch]?.[rowKey] || 0), 0);
+        }
+      }
       return DATA.monthly_by_product_name[m]?.[rowKey]?.actual || 0;
     }
     return 0;
@@ -149,6 +161,16 @@ function renderMatrix() {
         return v > 0;
       });
     });
+    // Filter to products with revenue in selected channel
+    if (mxCh !== 'all') {
+      const NH = ['NH Corporate','NH SME'];
+      const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+      const chs = mxCh === 'nh' ? NH : EA;
+      prods = prods.filter(p => months.some(m => {
+        const chData = DATA.monthly_ch_product_actual?.[m];
+        return chData && chs.some(ch => (chData[ch]?.[p] || 0) > 0);
+      }));
+    }
     rows = prods.map(p => ({key:p, label:p}));
   }
 
@@ -1248,6 +1270,18 @@ function renderMatrix() {
       return pgAct;
     }
     if (groupBy === 'product') {
+      if (mxCh !== 'all') {
+        const chKey = mxCh === 'nh' ? '__NH__' : mxCh === 'ea' ? '__EA__' : null;
+        // Try exact channel key first, fall back to NH/EA group
+        const chData = DATA.monthly_ch_product_actual?.[m];
+        if (chData) {
+          // Find matching channels
+          const NH = ['NH Corporate','NH SME'];
+          const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+          const chs = mxCh === 'nh' ? NH : EA;
+          return chs.reduce((s, ch) => s + (chData[ch]?.[rowKey] || 0), 0);
+        }
+      }
       return DATA.monthly_by_product_name[m]?.[rowKey]?.actual || 0;
     }
     return 0;
@@ -1297,6 +1331,16 @@ function renderMatrix() {
         return v > 0;
       });
     });
+    // Filter to products with revenue in selected channel
+    if (mxCh !== 'all') {
+      const NH = ['NH Corporate','NH SME'];
+      const EA = ['EA Key','EA Corporate','EA SME','EA Franchise','Commercial','Overseas'];
+      const chs = mxCh === 'nh' ? NH : EA;
+      prods = prods.filter(p => months.some(m => {
+        const chData = DATA.monthly_ch_product_actual?.[m];
+        return chData && chs.some(ch => (chData[ch]?.[p] || 0) > 0);
+      }));
+    }
     rows = prods.map(p => ({key:p, label:p}));
   }
 
