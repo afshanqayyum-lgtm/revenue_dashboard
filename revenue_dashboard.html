@@ -4,7 +4,109 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AdOps Revenue Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+// ── New Homes View ────────────────────────────────────────────────────────────
+const NH_CHS = ['NH Corporate','NH SME'];
+
+function initNH() {
+  var yrs = ['2021','2022','2023','2024','2025','2026'];
+  var yEl = document.getElementById('nh-year');
+  if (!yEl) return;
+  yEl.innerHTML = yrs.map(function(y){ return '<option value="'+y+'"'+(y==='2026'?' selected':'')+'>'+y+'</option>'; }).join('');
+  renderAllNHTables();
+}
+
+function renderAllNHTables() {
+  var mxYr = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var pgs  = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var pgEl = document.getElementById('nh-prod-pg');
+  if (pgEl) {
+    var cur = pgEl.value;
+    pgEl.innerHTML = pgs.map(function(p){ return '<option value="'+p+'"'+(p===cur?' selected':'')+'>'+p+'</option>'; }).join('');
+  }
+  renderNHTable1(); renderNHTable2(); renderNHTable3(); renderNHTable4();
+}
+
+function nhMonths() {
+  var v = document.getElementById('nh-year');
+  return getYrMonths(v ? v.value : '2026');
+}
+
+function renderNHTable1() {
+  var months = nhMonths();
+  var rows = NH_CHS.filter(function(ch){ return DATA.channels.includes(ch); }).map(function(ch){
+    return {
+      label:   ch,
+      actuals: months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].actual||0 : 0; }),
+      targets: months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].target||0 : 0; }),
+    };
+  });
+  var hasT = rows.some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-channel').innerHTML = buildTableHTML(rows, months, hasT);
+}
+
+function renderNHTable2() {
+  var months = nhMonths();
+  var mxYr  = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var rows  = pgs.map(function(pg){
+    return {
+      label:   pg,
+      actuals: months.map(function(m){ return (DATA.monthly_ch_pg_actual[m] && DATA.monthly_ch_pg_actual[m]['__NH__']) ? DATA.monthly_ch_pg_actual[m]['__NH__'][pg]||0 : 0; }),
+      targets: months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; }),
+    };
+  });
+  var hasT = rows.some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-pg').innerHTML = buildTableHTML(rows, months, hasT);
+}
+
+function renderNHTable3() {
+  var months = nhMonths();
+  var selPG  = document.getElementById('nh-prod-pg') ? document.getElementById('nh-prod-pg').value : DATA.pgs_2026[0];
+  var prods  = DATA.product_names.filter(function(p){ return PG_TO_PRODUCTS[selPG] && PG_TO_PRODUCTS[selPG].includes(p); });
+  var rows   = prods.map(function(pn){
+    return {
+      label:   pn,
+      actuals: months.map(function(m){
+        var nhData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m];
+        if (!nhData) return 0;
+        return NH_CHS.reduce(function(s,ch){ return s + ((nhData[ch] && nhData[ch][pn]) ? nhData[ch][pn] : 0); }, 0);
+      }),
+      targets:    months.map(function(){ return 0; }),
+      hideTarget: true,
+    };
+  }).filter(function(r){ return r.actuals.some(function(v){ return v>0; }); });
+  var el = document.getElementById('nh-tbl-product');
+  el.innerHTML = rows.length ? buildTableHTML(rows, months, false) : '<p style="color:var(--muted);padding:16px;">No data for this product group.</p>';
+}
+
+function renderNHTable4() {
+  var months = nhMonths();
+  var mxYr  = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var ch    = document.getElementById('nh-ch-detail') ? document.getElementById('nh-ch-detail').value : 'NH Corporate';
+  var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var rows  = [];
+  pgs.forEach(function(pg){
+    var pgActuals = months.map(function(m){
+      var chData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch];
+      if (!chData) return 0;
+      return DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); })
+        .reduce(function(s,pn){ return s + (chData[pn]||0); }, 0);
+    });
+    var pgTargets = months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; });
+    rows.push({label:pg, actuals:pgActuals, targets:pgTargets, header:true});
+    DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); }).forEach(function(pn){
+      var acts = months.map(function(m){ return (DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch]) ? DATA.monthly_ch_product_actual[m][ch][pn]||0 : 0; });
+      if (acts.some(function(v){ return v>0; })) {
+        rows.push({label:'\u00a0\u00a0\u00a0\u00a0'+pn, actuals:acts, targets:months.map(function(){ return 0; }), hideTarget:true});
+      }
+    });
+  });
+  var hasT = rows.filter(function(r){ return !r.header; }).some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-detail').innerHTML = buildTableHTML(rows, months, hasT);
+}
+
+</script>
 <style>
 :root {
   --bg:#f4f5f7;
@@ -169,6 +271,7 @@ tr:hover td{background:var(--surface2);}
     <button class="nav-tab active" onclick="showView('overview')">Overview</button>
     <button class="nav-tab" onclick="showView('monthly')">Monthly</button>
     <button class="nav-tab" onclick="showView('matrix')">Table View</button>
+    <button class="nav-tab" onclick="showView('nh')">New Homes</button>
   </nav>
   <div class="header-right">
     <div class="ctrl-group">
@@ -318,6 +421,47 @@ tr:hover td{background:var(--surface2);}
   </div>
 
 </div>
+
+<!-- NEW HOMES VIEW -->
+<div class="view" id="view-nh">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    <div class="ctrl-group">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);">Year</label>
+      <select id="nh-year" onchange="renderAllNHTables()" style="min-width:90px;"></select>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title" style="margin-bottom:12px;">NH Sales Channel</div>
+    <div class="table-wrap" id="nh-tbl-channel" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-title" style="margin-bottom:12px;">NH Product Group</div>
+    <div class="table-wrap" id="nh-tbl-pg" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="chart-title">NH Revenue by Product</div>
+      <div class="ctrl-group">
+        <label style="font-size:11px;font-weight:600;color:var(--muted);">Product Group</label>
+        <select id="nh-prod-pg" onchange="renderNHTable3()" style="min-width:160px;"></select>
+      </div>
+    </div>
+    <div class="table-wrap" id="nh-tbl-product" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+  <div class="chart-card">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="chart-title">NH Channel Detail</div>
+      <div class="ctrl-group">
+        <label style="font-size:11px;font-weight:600;color:var(--muted);">Sales Channel Type</label>
+        <select id="nh-ch-detail" onchange="renderNHTable4()" style="min-width:180px;">
+          <option value="NH Corporate">NH Corporate</option>
+          <option value="NH SME">NH SME</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap" id="nh-tbl-detail" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+</div>
 </main>
 
 <div id="tooltip">
@@ -365,6 +509,7 @@ function showView(v) {
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => { if (t.getAttribute('onclick').includes("'"+v+"'")) t.classList.add('active'); });
   initMatrix();
+initNH();
 render();
 }
 function updateYear()   { yr = document.getElementById('yearSelect').value; render(); }
@@ -372,6 +517,7 @@ function render() {
   if      (curView==='overview')  renderOverview();
   else if (curView==='monthly')   renderMonthly();
   else if (curView==='matrix')    renderAllTables();
+  else if (curView==='nh')         renderAllNHTables();
 }
 function dc(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
@@ -977,68 +1123,76 @@ function mxMonths() {
 
 function buildTableHTML(rows, months, hasTargets) {
   const mLabels = months.map(m=>m.split(' ')[0]);
-  const sticky  = 'position:sticky;left:0;z-index:1;';
+  const COL1W = 180, COL2W = 75; // fixed widths for sticky columns
 
-  let thead = `<thead><tr style="background:var(--surface2);">
-    <th style="text-align:left;min-width:160px;${sticky}background:var(--surface2);padding:8px 10px;">Row</th>
-    <th style="text-align:left;width:70px;font-size:11px;color:var(--muted);${sticky}left:160px;background:var(--surface2);padding:8px 6px;">Type</th>
-    ${mLabels.map(l=>`<th style="text-align:right;min-width:100px;padding:8px 10px;">${l}</th>`).join('')}
-    <th style="text-align:right;min-width:110px;padding:8px 10px;border-left:1px solid var(--border);">Total</th>
-  </tr></thead><tbody>`;
+  const s1 = `position:sticky;left:0px;z-index:2;min-width:${COL1W}px;width:${COL1W}px;`;
+  const s2 = `position:sticky;left:${COL1W}px;z-index:2;min-width:${COL2W}px;width:${COL2W}px;`;
+
+  let html = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+    <colgroup>
+      <col style="width:${COL1W}px;min-width:${COL1W}px;">
+      <col style="width:${COL2W}px;min-width:${COL2W}px;">
+      ${months.map(()=>'<col style="width:100px;min-width:100px;">').join('')}
+      <col style="width:110px;min-width:110px;">
+    </colgroup>
+    <thead><tr style="background:var(--surface2);">
+      <th style="text-align:left;${s1}background:var(--surface2);padding:8px 10px;">Row</th>
+      <th style="text-align:left;font-size:11px;color:var(--muted);${s2}background:var(--surface2);padding:8px 6px;">Type</th>
+      ${mLabels.map(l=>`<th style="text-align:right;padding:8px 10px;">${l}</th>`).join('')}
+      <th style="text-align:right;padding:8px 10px;border-left:1px solid var(--border);">Total</th>
+    </tr></thead><tbody>`;
 
   let totA = months.map(()=>0), totT = months.map(()=>0);
 
   rows.forEach(r => {
-    const isHeader = r.header;
-    const bg = isHeader ? 'background:var(--surface2);' : '';
-    const fw = isHeader ? 'font-weight:700;' : '';
+    const isHdr = r.header;
+    const rowBg  = isHdr ? 'var(--surface2)' : 'var(--card)';
+    const fw     = isHdr ? 'font-weight:700;' : '';
 
-    r.actuals.forEach((v,i)=>{ if(!isHeader) totA[i]+=v; });
-    r.targets.forEach((v,i)=>{ if(!isHeader) totT[i]+=v; });
+    if (!isHdr) { r.actuals.forEach((v,i)=>totA[i]+=v); r.targets.forEach((v,i)=>totT[i]+=v); }
 
     const tA = r.actuals.reduce((s,v)=>s+v,0);
     const tT = r.targets.reduce((s,v)=>s+v,0);
 
-    thead += `<tr class="revenue-row" style="${bg}">
-      <td class="row-label" style="${sticky}${bg}${fw}padding:9px 10px;">${r.label}</td>
-      <td class="row-type" style="${sticky}left:160px;${bg}padding:9px 6px;">${isHeader?'Revenue':'Revenue'}</td>
+    html += `<tr class="revenue-row">
+      <td class="row-label" style="${s1}background:${rowBg};${fw}padding:9px 10px;border-right:1px solid var(--border);">${r.label}</td>
+      <td class="row-type"  style="${s2}background:${rowBg};padding:9px 6px;border-right:1px solid var(--border);">Revenue</td>
       ${r.actuals.map((a,i)=>{
         const p=r.targets[i]>0?pct(a,r.targets[i]):-1;
-        const cell_bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';
-        return `<td class="rev-cell" style="background:${cell_bg};${fw}padding:9px 10px;">${fmt(a)}</td>`;
+        const cbg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';
+        return `<td class="rev-cell" style="background:${cbg};${fw}padding:9px 10px;">${fmt(a)}</td>`;
       }).join('')}
       <td class="rev-cell" style="${fw}padding:9px 10px;border-left:1px solid var(--border);">${fmt(tA)}</td>
     </tr>`;
 
     if (hasTargets && !r.hideTarget) {
-      thead += `<tr class="target-row">
-        <td style="${sticky}background:var(--card);"></td>
-        <td class="row-type" style="${sticky}left:160px;background:var(--card);padding:5px 6px;">Target</td>
+      html += `<tr class="target-row">
+        <td style="${s1}background:${rowBg};border-right:1px solid var(--border);padding:5px 10px;"></td>
+        <td class="row-type" style="${s2}background:${rowBg};border-right:1px solid var(--border);padding:5px 6px;">Target</td>
         ${r.targets.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
         <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${tT>0?fmt(tT):'—'}</td>
       </tr>`;
     }
   });
 
-  // Total row
   const gA=totA.reduce((s,v)=>s+v,0), gT=totT.reduce((s,v)=>s+v,0);
-  thead += `<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
-    <td class="row-label" style="${sticky}background:var(--surface2);padding:9px 10px;">Total</td>
-    <td class="row-type" style="${sticky}left:160px;background:var(--surface2);padding:9px 6px;">Revenue</td>
+  html += `<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
+    <td class="row-label" style="${s1}background:var(--surface2);font-weight:700;padding:9px 10px;border-right:1px solid var(--border);">Total</td>
+    <td class="row-type"  style="${s2}background:var(--surface2);padding:9px 6px;border-right:1px solid var(--border);">Revenue</td>
     ${totA.map((a,i)=>{const p=totT[i]>0?pct(a,totT[i]):-1;const bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';return `<td class="rev-cell" style="background:${bg};font-weight:700;padding:9px 10px;">${fmt(a)}</td>`;}).join('')}
     <td class="rev-cell" style="font-weight:700;padding:9px 10px;border-left:1px solid var(--border);">${fmt(gA)}</td>
   </tr>`;
   if (hasTargets) {
-    thead += `<tr class="total-row" style="background:var(--surface2);">
-      <td style="${sticky}background:var(--surface2);"></td>
-      <td class="row-type" style="${sticky}left:160px;background:var(--surface2);padding:5px 6px;">Target</td>
+    html += `<tr class="total-row" style="background:var(--surface2);">
+      <td style="${s1}background:var(--surface2);border-right:1px solid var(--border);"></td>
+      <td class="row-type" style="${s2}background:var(--surface2);border-right:1px solid var(--border);padding:5px 6px;">Target</td>
       ${totT.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
       <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${gT>0?fmt(gT):'—'}</td>
     </tr>`;
   }
 
-  thead += '</tbody>';
-  return `<table style="width:100%;border-collapse:collapse;">${thead}</table>`;
+  html += '</tbody></table>';
+  return html;
 }
 
 // ── Table 1: Sales Channel ────────────────────────────────────────────────────
@@ -1122,6 +1276,108 @@ function renderTable4() {
 
   const hasTargets = rows.filter(r=>!r.header).some(r=>r.targets.some(v=>v>0));
   document.getElementById('tbl-detail').innerHTML = buildTableHTML(rows, months, hasTargets);
+}
+
+
+// ── New Homes View ────────────────────────────────────────────────────────────
+const NH_CHS = ['NH Corporate','NH SME'];
+
+function initNH() {
+  var yrs = ['2021','2022','2023','2024','2025','2026'];
+  var yEl = document.getElementById('nh-year');
+  if (!yEl) return;
+  yEl.innerHTML = yrs.map(function(y){ return '<option value="'+y+'"'+(y==='2026'?' selected':'')+'>'+y+'</option>'; }).join('');
+  renderAllNHTables();
+}
+
+function renderAllNHTables() {
+  var mxYr = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var pgs  = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var pgEl = document.getElementById('nh-prod-pg');
+  if (pgEl) {
+    var cur = pgEl.value;
+    pgEl.innerHTML = pgs.map(function(p){ return '<option value="'+p+'"'+(p===cur?' selected':'')+'>'+p+'</option>'; }).join('');
+  }
+  renderNHTable1(); renderNHTable2(); renderNHTable3(); renderNHTable4();
+}
+
+function nhMonths() {
+  var v = document.getElementById('nh-year');
+  return getYrMonths(v ? v.value : '2026');
+}
+
+function renderNHTable1() {
+  var months = nhMonths();
+  var rows = NH_CHS.filter(function(ch){ return DATA.channels.includes(ch); }).map(function(ch){
+    return {
+      label:   ch,
+      actuals: months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].actual||0 : 0; }),
+      targets: months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].target||0 : 0; }),
+    };
+  });
+  var hasT = rows.some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-channel').innerHTML = buildTableHTML(rows, months, hasT);
+}
+
+function renderNHTable2() {
+  var months = nhMonths();
+  var mxYr  = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var rows  = pgs.map(function(pg){
+    return {
+      label:   pg,
+      actuals: months.map(function(m){ return (DATA.monthly_ch_pg_actual[m] && DATA.monthly_ch_pg_actual[m]['__NH__']) ? DATA.monthly_ch_pg_actual[m]['__NH__'][pg]||0 : 0; }),
+      targets: months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; }),
+    };
+  });
+  var hasT = rows.some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-pg').innerHTML = buildTableHTML(rows, months, hasT);
+}
+
+function renderNHTable3() {
+  var months = nhMonths();
+  var selPG  = document.getElementById('nh-prod-pg') ? document.getElementById('nh-prod-pg').value : DATA.pgs_2026[0];
+  var prods  = DATA.product_names.filter(function(p){ return PG_TO_PRODUCTS[selPG] && PG_TO_PRODUCTS[selPG].includes(p); });
+  var rows   = prods.map(function(pn){
+    return {
+      label:   pn,
+      actuals: months.map(function(m){
+        var nhData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m];
+        if (!nhData) return 0;
+        return NH_CHS.reduce(function(s,ch){ return s + ((nhData[ch] && nhData[ch][pn]) ? nhData[ch][pn] : 0); }, 0);
+      }),
+      targets:    months.map(function(){ return 0; }),
+      hideTarget: true,
+    };
+  }).filter(function(r){ return r.actuals.some(function(v){ return v>0; }); });
+  var el = document.getElementById('nh-tbl-product');
+  el.innerHTML = rows.length ? buildTableHTML(rows, months, false) : '<p style="color:var(--muted);padding:16px;">No data for this product group.</p>';
+}
+
+function renderNHTable4() {
+  var months = nhMonths();
+  var mxYr  = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  var ch    = document.getElementById('nh-ch-detail') ? document.getElementById('nh-ch-detail').value : 'NH Corporate';
+  var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
+  var rows  = [];
+  pgs.forEach(function(pg){
+    var pgActuals = months.map(function(m){
+      var chData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch];
+      if (!chData) return 0;
+      return DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); })
+        .reduce(function(s,pn){ return s + (chData[pn]||0); }, 0);
+    });
+    var pgTargets = months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; });
+    rows.push({label:pg, actuals:pgActuals, targets:pgTargets, header:true});
+    DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); }).forEach(function(pn){
+      var acts = months.map(function(m){ return (DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch]) ? DATA.monthly_ch_product_actual[m][ch][pn]||0 : 0; });
+      if (acts.some(function(v){ return v>0; })) {
+        rows.push({label:'\u00a0\u00a0\u00a0\u00a0'+pn, actuals:acts, targets:months.map(function(){ return 0; }), hideTarget:true});
+      }
+    });
+  });
+  var hasT = rows.filter(function(r){ return !r.header; }).some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+  document.getElementById('nh-tbl-detail').innerHTML = buildTableHTML(rows, months, hasT);
 }
 
 </script>
