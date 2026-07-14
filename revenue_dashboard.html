@@ -168,10 +168,18 @@ tr:hover td{background:var(--surface2);}
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="showView('overview')">Overview</button>
     <button class="nav-tab" onclick="showView('monthly')">Monthly</button>
-    <button class="nav-tab" onclick="showView('matrix')">Table View</button>
-    <button class="nav-tab" onclick="showView('nh')">New Homes</button>
+    <button class="nav-tab" onclick="showView('matrix')">All Table View</button>
+    <button class="nav-tab" onclick="showView('nh')">NH Table View</button>
   </nav>
   <div class="header-right">
+    <div class="ctrl-group">
+      <label>Revenue</label>
+      <select id="revenueFilter" onchange="updateRevenueFilter()" style="min-width:160px;">
+        <option value="all">Incl. Draft</option>
+        <option value="actual">Actuals Only</option>
+        <option value="draft">Draft Only</option>
+      </select>
+    </div>
     <div class="ctrl-group">
       <label>Year</label>
       <select id="yearSelect" onchange="updateYear()">
@@ -274,12 +282,13 @@ tr:hover td{background:var(--surface2);}
 <!-- MATRIX TABLE VIEW -->
 <div class="view" id="view-matrix">
 
-  <!-- Year filter -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+  <!-- Year filter + Draft toggle -->
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
     <div class="ctrl-group">
       <label style="font-size:12px;font-weight:600;color:var(--muted);">Year</label>
       <select id="mx-year" onchange="renderAllTables()" style="min-width:90px;"></select>
     </div>
+
   </div>
 
   <!-- Table 1: Sales Channel -->
@@ -322,11 +331,12 @@ tr:hover td{background:var(--surface2);}
 
 <!-- NEW HOMES VIEW -->
 <div class="view" id="view-nh">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
     <div class="ctrl-group">
       <label style="font-size:12px;font-weight:600;color:var(--muted);">Year</label>
       <select id="nh-year" onchange="renderAllNHTables()" style="min-width:90px;"></select>
     </div>
+
   </div>
   <div class="chart-card" style="margin-bottom:16px;">
     <div class="chart-title" style="margin-bottom:12px;">NH Sales Channel</div>
@@ -384,7 +394,7 @@ const allMonths = Object.keys(DATA.monthly);
 function getYrMonths(y) { return allMonths.filter(m => m.includes(y)); }
 
 // Apply group filter to actuals
-function filteredActual(m) { return DATA.monthly[m]?.actual || 0; }
+function filteredActual(m) { return getMonthActual(m); }
 function filteredTarget(m)  { return DATA.monthly[m]?.target || 0; }
 function filteredYrTotal(y) {
   const my = getYrMonths(y);
@@ -472,7 +482,11 @@ function renderOverview() {
   const run = DATA.running[yr];
   const labels = run.months;
 
-  const actData = run.actual, tgtData = run.target;
+  const actData = run.actual.map(function(a,i){
+    var d = run.draft_running ? run.draft_running[i] : 0;
+    return getActualValue(a, d);
+  });
+  const tgtData = run.target;
 
   // For 2026: show actual+draft as additional dashed line
   const hasDraftLine = yr === '2026' && DATA.running['2026'].actual_with_draft;
@@ -592,6 +606,11 @@ function resetAnnualFilters() {
 }
 
 function getAnnualActual(m) {
+  // Use revenueMode to decide whether to include draft
+  var draft_val = 0;
+  if (revenueMode !== 'actual') {
+    draft_val = DATA.monthly_draft[m] || 0;
+  }
   if (afProduct !== 'all') return DATA.monthly_by_product_name[m]?.[afProduct]?.actual || 0;
   if (afPG !== 'all') {
     if (afChannel !== 'all') {
@@ -1050,7 +1069,7 @@ function buildTableHTML(rows, months, hasTargets) {
       ${r.actuals.map((a,i)=>{
         const p=r.targets[i]>0?pct(a,r.targets[i]):-1;
         const cbg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';
-        return `<td class="rev-cell" style="background:${cbg};${fw}padding:9px 10px;">${fmt(a)}</td>`;
+        return `<td class="rev-cell" style="background:${cbg};${fw}padding:9px 10px;border-left:1px solid var(--border);">${fmt(a)}</td>`;
       }).join('')}
       <td class="rev-cell" style="${fw}padding:9px 10px;border-left:1px solid var(--border);">${fmt(tA)}</td>
     </tr>`;
@@ -1059,7 +1078,7 @@ function buildTableHTML(rows, months, hasTargets) {
       html += `<tr class="target-row">
         <td style="${s1}background:${rowBg};border-right:1px solid var(--border);padding:5px 10px;"></td>
         <td class="row-type" style="${s2}background:${rowBg};border-right:1px solid var(--border);padding:5px 6px;">Target</td>
-        ${r.targets.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
+        ${r.targets.map(t=>`<td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${t>0?fmt(t):'—'}</td>`).join('')}
         <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${tT>0?fmt(tT):'—'}</td>
       </tr>`;
     }
@@ -1069,14 +1088,14 @@ function buildTableHTML(rows, months, hasTargets) {
   html += `<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
     <td class="row-label" style="${s1}background:var(--surface2);font-weight:700;padding:9px 10px;border-right:1px solid var(--border);">Total</td>
     <td class="row-type"  style="${s2}background:var(--surface2);padding:9px 6px;border-right:1px solid var(--border);">Revenue</td>
-    ${totA.map((a,i)=>{const p=totT[i]>0?pct(a,totT[i]):-1;const bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';return `<td class="rev-cell" style="background:${bg};font-weight:700;padding:9px 10px;">${fmt(a)}</td>`;}).join('')}
+    ${totA.map((a,i)=>{const p=totT[i]>0?pct(a,totT[i]):-1;const bg=p>=100?'rgba(22,163,74,.15)':p>=80?'rgba(217,119,6,.15)':p>=0?'rgba(220,38,38,.12)':'transparent';return `<td class="rev-cell" style="background:${bg};font-weight:700;padding:9px 10px;border-left:1px solid var(--border);">${fmt(a)}</td>`;}).join('')}
     <td class="rev-cell" style="font-weight:700;padding:9px 10px;border-left:1px solid var(--border);">${fmt(gA)}</td>
   </tr>`;
   if (hasTargets) {
     html += `<tr class="total-row" style="background:var(--surface2);">
       <td style="${s1}background:var(--surface2);border-right:1px solid var(--border);"></td>
       <td class="row-type" style="${s2}background:var(--surface2);border-right:1px solid var(--border);padding:5px 6px;">Target</td>
-      ${totT.map(t=>`<td class="tgt-cell" style="padding:5px 10px;">${t>0?fmt(t):'—'}</td>`).join('')}
+      ${totT.map(t=>`<td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${t>0?fmt(t):'—'}</td>`).join('')}
       <td class="tgt-cell" style="padding:5px 10px;border-left:1px solid var(--border);">${gT>0?fmt(gT):'—'}</td>
     </tr>`;
   }
@@ -1277,6 +1296,49 @@ function renderNHTable4() {
   var hasT = rows.some(function(r){ return !r.header&&r.targets&&r.targets.some(function(v){ return v>0; }); });
   document.getElementById('nh-tbl-detail').innerHTML = buildTableHTML(rows, months, hasT);
 }
+
+
+
+// ── Global Revenue Filter ─────────────────────────────────────────────────────
+// 'all' = actuals + draft, 'actual' = actuals only, 'draft' = draft only
+let revenueMode = 'all';
+
+function updateRevenueFilter() {
+  revenueMode = document.getElementById('revenueFilter')?.value || 'all';
+  render();
+}
+
+function getActualValue(actual, draft) {
+  if (revenueMode === 'all')    return actual + draft;
+  if (revenueMode === 'actual') return actual;
+  if (revenueMode === 'draft')  return draft;
+  return actual;
+}
+
+function getMonthActual(m) {
+  var a = DATA.monthly[m]?.actual || 0;
+  var d = DATA.monthly_draft[m] || 0;
+  return getActualValue(a, d);
+}
+
+function getChannelActual(m, chKey) {
+  var a = DATA.monthly_by_channel[m]?.[chKey]?.actual || 0;
+  var d = DATA.monthly_by_channel_draft[m]?.[chKey] || 0;
+  return getActualValue(a, d);
+}
+
+function getPGActual(m, pg) {
+  var a = DATA.monthly_by_product_group[m]?.[pg]?.actual || 0;
+  var d = DATA.monthly_by_channel_draft[m]?.['__by_pg__']?.[pg] || 0;
+  return getActualValue(a, d);
+}
+
+function getChPGActual(m, chKey, pg) {
+  var a = DATA.monthly_ch_pg_actual[m]?.[chKey]?.[pg] || 0;
+  var d = 0; // no draft breakdown at ch×pg level
+  return getActualValue(a, d);
+}
+
 
 </script>
 
