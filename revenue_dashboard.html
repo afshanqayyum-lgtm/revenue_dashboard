@@ -86,30 +86,29 @@ function renderNHTable4() {
   var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
   var rows  = [];
 
-  // Show both NH Corporate and NH SME as top-level channel headers
-  NH_CHS.filter(function(ch){ return DATA.channels.includes(ch); }).forEach(function(ch){
-    // Channel header row
-    var chActuals = months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].actual||0 : 0; });
-    var chTargets = months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].target||0 : 0; });
-    rows.push({label: ch, actuals: chActuals, targets: chTargets, header: true});
-
-    // Product group sub-headers with products
-    pgs.forEach(function(pg){
-      var pgActuals = months.map(function(m){
+  // Product group headers with NH Corporate + NH SME combined products underneath
+  pgs.forEach(function(pg){
+    var pgActuals = months.map(function(m){
+      return NH_CHS.reduce(function(s,ch){
         var chData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch];
-        if (!chData) return 0;
-        return DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); })
-          .reduce(function(s,pn){ return s+(chData[pn]||0); }, 0);
-      });
-      if (!pgActuals.some(function(v){ return v>0; })) return;
-      rows.push({label: '\u00a0\u00a0'+pg, actuals: pgActuals, targets: months.map(function(){ return 0; }), hideTarget: true, subheader: true});
+        if (!chData) return s;
+        return s + DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); })
+          .reduce(function(s2,pn){ return s2+(chData[pn]||0); }, 0);
+      }, 0);
+    });
+    var pgTargets = months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; });
+    if (!pgActuals.some(function(v){ return v>0; })) return;
+    rows.push({label: pg, actuals: pgActuals, targets: pgTargets, header: true});
 
-      DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); }).forEach(function(pn){
-        var acts = months.map(function(m){ return (DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch]) ? DATA.monthly_ch_product_actual[m][ch][pn]||0 : 0; });
-        if (acts.some(function(v){ return v>0; })) {
-          rows.push({label:'\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0'+pn, actuals:acts, targets:months.map(function(){ return 0; }), hideTarget:true});
-        }
+    DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); }).forEach(function(pn){
+      var acts = months.map(function(m){
+        return NH_CHS.reduce(function(s,ch){
+          return s + ((DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch]) ? DATA.monthly_ch_product_actual[m][ch][pn]||0 : 0);
+        }, 0);
       });
+      if (acts.some(function(v){ return v>0; })) {
+        rows.push({label:'\u00a0\u00a0\u00a0\u00a0'+pn, actuals:acts, targets:months.map(function(){ return 0; }), hideTarget:true});
+      }
     });
   });
 
@@ -1357,42 +1356,6 @@ function renderNHTable3() {
   el.innerHTML = rows.length ? buildTableHTML(rows, months, false) : '<p style="color:var(--muted);padding:16px;">No data for this product group.</p>';
 }
 
-function renderNHTable4() {
-  var months = nhMonths();
-  var mxYr  = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
-  var pgs   = parseInt(mxYr)===2026 ? DATA.pgs_2026 : DATA.pgs_pre2026;
-  var rows  = [];
-
-  // Show both NH Corporate and NH SME as top-level channel headers
-  NH_CHS.filter(function(ch){ return DATA.channels.includes(ch); }).forEach(function(ch){
-    // Channel header row
-    var chActuals = months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].actual||0 : 0; });
-    var chTargets = months.map(function(m){ return (DATA.monthly_by_channel[m] && DATA.monthly_by_channel[m][ch]) ? DATA.monthly_by_channel[m][ch].target||0 : 0; });
-    rows.push({label: ch, actuals: chActuals, targets: chTargets, header: true});
-
-    // Product group sub-headers with products
-    pgs.forEach(function(pg){
-      var pgActuals = months.map(function(m){
-        var chData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch];
-        if (!chData) return 0;
-        return DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); })
-          .reduce(function(s,pn){ return s+(chData[pn]||0); }, 0);
-      });
-      if (!pgActuals.some(function(v){ return v>0; })) return;
-      rows.push({label: '\u00a0\u00a0'+pg, actuals: pgActuals, targets: months.map(function(){ return 0; }), hideTarget: true, subheader: true});
-
-      DATA.product_names.filter(function(pn){ return PG_TO_PRODUCTS[pg] && PG_TO_PRODUCTS[pg].includes(pn); }).forEach(function(pn){
-        var acts = months.map(function(m){ return (DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m][ch]) ? DATA.monthly_ch_product_actual[m][ch][pn]||0 : 0; });
-        if (acts.some(function(v){ return v>0; })) {
-          rows.push({label:'\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0'+pn, actuals:acts, targets:months.map(function(){ return 0; }), hideTarget:true});
-        }
-      });
-    });
-  });
-
-  var hasT = rows.some(function(r){ return !r.header && r.targets && r.targets.some(function(v){ return v>0; }); });
-  document.getElementById('nh-tbl-detail').innerHTML = buildTableHTML(rows, months, hasT);
-}
 
 </script>
 
