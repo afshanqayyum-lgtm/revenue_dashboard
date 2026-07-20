@@ -1074,17 +1074,17 @@ function mxMonths() {
 
 function buildTableHTML(rows, months, hasTargets) {
   const mLabels = months.map(m=>m.split(' ')[0]);
-  const COL1W = 180, COL2W = 75; // fixed widths for sticky columns
+  const COL1W = 180, COL2W = 95; // fixed widths for sticky columns
 
-  const s1 = `position:sticky;left:0px;z-index:2;min-width:${COL1W}px;width:${COL1W}px;`;
-  const s2 = `position:sticky;left:${COL1W}px;z-index:2;min-width:${COL2W}px;width:${COL2W}px;`;
+  const s1 = `position:sticky;left:0px;z-index:2;min-width:${COL1W}px;width:${COL1W}px;max-width:${COL1W}px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
+  const s2 = `position:sticky;left:${COL1W}px;z-index:2;min-width:${COL2W}px;width:${COL2W}px;max-width:${COL2W}px;overflow:hidden;white-space:nowrap;`;
 
   let html = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
     <colgroup>
       <col style="width:${COL1W}px;min-width:${COL1W}px;">
       <col style="width:${COL2W}px;min-width:${COL2W}px;">
       ${months.map(()=>'<col style="width:100px;min-width:100px;">').join('')}
-      <col style="width:110px;min-width:110px;">
+      <col style="width:120px;min-width:120px;">
     </colgroup>
     <thead><tr style="background:var(--surface2);">
       <th style="text-align:left;${s1}background:var(--surface2);padding:8px 10px;">Row</th>
