@@ -1282,7 +1282,19 @@ function renderNHTable2() {
       targets: months.map(function(m){ return (DATA.monthly_ch_pg_target[m] && DATA.monthly_ch_pg_target[m]['__NH__']) ? DATA.monthly_ch_pg_target[m]['__NH__'][pg]||0 : 0; }),
     };
   });
-  var hasT = rows.some(function(r){ return r.targets.some(function(v){ return v>0; }); });
+
+  // Bundles row — Development Accelerator + Event Promoter, NH combined, no target
+  var bundleProds = ['Development Accelerator', 'Event Promoter'];
+  var bundleActuals = months.map(function(m){
+    var nhData = DATA.monthly_ch_product_actual && DATA.monthly_ch_product_actual[m] && DATA.monthly_ch_product_actual[m]['__NH__'];
+    if (!nhData) return 0;
+    return bundleProds.reduce(function(s, pn){ return s + (nhData[pn] || 0); }, 0);
+  });
+  if (bundleActuals.some(function(v){ return v > 0; })) {
+    rows.push({label: 'Bundles', actuals: bundleActuals, targets: months.map(function(){ return 0; }), hideTarget: true});
+  }
+
+  var hasT = rows.some(function(r){ return r.targets && r.targets.some(function(v){ return v>0; }); });
   document.getElementById('nh-tbl-pg').innerHTML = buildTableHTML(rows, months, hasT);
 }
 
