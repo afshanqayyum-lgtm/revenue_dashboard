@@ -173,7 +173,7 @@ tr:hover td{background:var(--surface2);}
     <button class="nav-tab" onclick="showView('margins')">Margins</button>
   </nav>
   <div class="header-right">
-    <div class="ctrl-group">
+    <div class="ctrl-group" id="revenueFilterGroup">
       <label>Revenue</label>
       <select id="revenueFilter" onchange="updateRevenueFilter()" style="min-width:160px;">
         <option value="all">Incl. Draft</option>
@@ -328,6 +328,12 @@ tr:hover td{background:var(--surface2);}
     <div class="table-wrap" id="tbl-detail" style="overflow-x:auto;font-size:13px;"></div>
   </div>
 
+  <!-- Table 5: Draft Pipeline by Product -->
+  <div class="chart-card">
+    <div class="chart-title" style="margin-bottom:12px;">Draft Pipeline by Product</div>
+    <div class="table-wrap" id="tbl-draft-products" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
 </div>
 
 <!-- NEW HOMES VIEW -->
@@ -357,9 +363,14 @@ tr:hover td{background:var(--surface2);}
     </div>
     <div class="table-wrap" id="nh-tbl-product" style="overflow-x:auto;font-size:13px;"></div>
   </div>
-  <div class="chart-card">
+  <div class="chart-card" style="margin-bottom:16px;">
     <div class="chart-title" style="margin-bottom:12px;">NH Channel Detail</div>
     <div class="table-wrap" id="nh-tbl-detail" style="overflow-x:auto;font-size:13px;"></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title" style="margin-bottom:12px;">NH Draft Pipeline by Product</div>
+    <div class="table-wrap" id="nh-tbl-draft-products" style="overflow-x:auto;font-size:13px;"></div>
   </div>
 </div>
 
@@ -425,6 +436,8 @@ function filteredYrTotal(y) {
 }
 
 function showView(v) {
+  const rfg = document.getElementById('revenueFilterGroup');
+  if (rfg) rfg.style.display = (v === 'overview' || v === 'monthly') ? 'flex' : 'none';
   curView = v;
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -1051,6 +1064,7 @@ function renderAllTables() {
   renderTable2();
   renderTable3();
   renderTable4();
+  renderDraftProductsAll();
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -1236,7 +1250,7 @@ function renderAllNHTables() {
     var cur = pgEl.value;
     pgEl.innerHTML = pgs.map(function(p){ return '<option value="'+p+'"'+(p===cur?' selected':'')+'>'+p+'</option>'; }).join('');
   }
-  renderNHTable1(); renderNHTable2(); renderNHTable3(); renderNHTable4();
+  renderNHTable1(); renderNHTable2(); renderNHTable3(); renderNHTable4(); renderDraftProductsNH();
 }
 
 function nhMonths() {
@@ -1402,7 +1416,10 @@ function renderMargins() {
   var adSalesPkgs = DATA.margin_adsales_products || ['Facebook CPC','Facebook CPL','Facebook CTW'];
   // Build unified row list: NH rows + EA Corporate + EA combined + AdSales
   var allRows = [];
-  nhSegs.forEach(function(seg){ allRows.push({seg:seg, pkgs:nhPkgs}); });
+  nhSegs.forEach(function(seg){
+    var segPkgs = (seg === 'NH SME') ? nhPkgs.concat(['Bespoke Subscription']) : nhPkgs;
+    allRows.push({seg:seg, pkgs:segPkgs});
+  });
   allRows.push({seg:'EA Corporate', pkgs:eaCorpPkgs});
   allRows.push({seg:'EA', pkgs:eaPkgs});
   allRows.push({seg:'AdSales', pkgs:adSalesPkgs});
@@ -1468,6 +1485,38 @@ function renderMargins() {
     {label:'Total Cost',val:fmt(grandCost),color:'var(--muted)'},
     {label:'Overall Margin',val:gM!==null?gM.toFixed(1)+'%':'—',color:gMC},
   ].map(function(k){ return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div></div>'; }).join('');
+}
+
+
+// ── Draft Pipeline by Product tables ──────────────────────────────────────────
+function renderDraftProductsTable(elId, dataKey, months) {
+  var draftData = DATA[dataKey] || {};
+  var prods = DATA.product_names.filter(function(pn){
+    return months.some(function(m){ return (draftData[m] && draftData[m][pn] || 0) > 0; });
+  });
+  if (!prods.length) {
+    document.getElementById(elId).innerHTML = '<p style="color:var(--muted);padding:16px;">No draft revenue for this period.</p>';
+    return;
+  }
+  var rows = prods.map(function(pn){
+    return {
+      label: pn,
+      actuals: months.map(function(m){ return (draftData[m] && draftData[m][pn]) || 0; }),
+      targets: months.map(function(){ return 0; }),
+      hideTarget: true,
+    };
+  });
+  document.getElementById(elId).innerHTML = buildTableHTML(rows, months, false);
+}
+
+function renderDraftProductsAll() {
+  var mxYr = document.getElementById('mx-year') ? document.getElementById('mx-year').value : '2026';
+  renderDraftProductsTable('tbl-draft-products', 'monthly_draft_by_product', getYrMonths(mxYr));
+}
+
+function renderDraftProductsNH() {
+  var nhYr = document.getElementById('nh-year') ? document.getElementById('nh-year').value : '2026';
+  renderDraftProductsTable('nh-tbl-draft-products', 'monthly_nh_draft_by_product', getYrMonths(nhYr));
 }
 
 </script>
