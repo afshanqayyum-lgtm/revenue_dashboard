@@ -1431,11 +1431,19 @@ function renderMargins() {
   var S2  = 'position:sticky;left:'+COL1W+'px;z-index:2;min-width:'+COL2W+'px;background:var(--surface2);';
   var S2c = 'position:sticky;left:'+COL1W+'px;z-index:1;min-width:'+COL2W+'px;background:var(--card);';
 
+  // Determine if selected month is in the past, present, or future
+  var monthParts = m.split(' ');
+  var monthIdx = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(monthParts[0]);
+  var monthYear = parseInt(monthParts[1]);
+  var now = new Date();
+  var isPast = (monthYear < now.getFullYear()) || (monthYear === now.getFullYear() && monthIdx < now.getMonth());
+  var costLabel = isPast ? 'Cost' : 'Forecasted Cost';
+
   var tbl = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--surface2);">' +
     '<th style="text-align:left;padding:8px 10px;'+S1+'">Segment</th>' +
     '<th style="text-align:left;padding:8px 10px;'+S2+'border-left:1px solid var(--border);">Product</th>' +
     '<th style="text-align:right;min-width:130px;padding:8px 10px;border-left:1px solid var(--border);">Revenue</th>' +
-    '<th style="text-align:right;min-width:130px;padding:8px 10px;border-left:1px solid var(--border);">Forecasted Cost</th>' +
+    '<th style="text-align:right;min-width:130px;padding:8px 10px;border-left:1px solid var(--border);">'+costLabel+'</th>' +
     '<th style="text-align:right;min-width:100px;padding:8px 10px;border-left:1px solid var(--border);">Margin %</th>' +
     '</tr></thead><tbody>';
 
