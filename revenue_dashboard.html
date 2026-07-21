@@ -181,7 +181,7 @@ tr:hover td{background:var(--surface2);}
         <option value="draft">Draft Only</option>
       </select>
     </div>
-    <div class="ctrl-group">
+    <div class="ctrl-group" id="yearSelectGroup">
       <label>Year</label>
       <select id="yearSelect" onchange="updateYear()">
         <option>2022</option><option>2023</option><option>2024</option>
@@ -446,6 +446,8 @@ function filteredYrTotal(y) {
 function showView(v) {
   const rfg = document.getElementById('revenueFilterGroup');
   if (rfg) rfg.style.display = (v === 'overview' || v === 'monthly') ? 'flex' : 'none';
+  const ysg = document.getElementById('yearSelectGroup');
+  if (ysg) ysg.style.display = (v === 'overview' || v === 'monthly') ? 'flex' : 'none';
   curView = v;
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
