@@ -1096,8 +1096,8 @@ function buildTableHTML(rows, months, hasTargets) {
     </colgroup>
     <thead><tr style="background:var(--surface2);">
       <th style="text-align:left;${s1}var(--surface2);padding:8px 10px;">Row</th>
-      ${mLabels.map(l=>`<th style="text-align:right;padding:8px 10px;">${l}</th>`).join('')}
-      <th style="text-align:right;padding:8px 10px;border-left:1px solid var(--border);">Total</th>
+      ${mLabels.map(l=>`<th style="text-align:center;padding:8px 10px;">${l}</th>`).join('')}
+      <th style="text-align:center;padding:8px 10px;border-left:1px solid var(--border);">Total</th>
     </tr></thead><tbody>`;
 
   let totA = months.map(()=>0), totT = months.map(()=>0);
