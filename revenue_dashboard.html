@@ -1693,14 +1693,10 @@ function renderYoy() {
 
   // ── Revenue by Product Group ──────────────────────────────────────────────────
   var pgs = DATA.pgs_2026 || ['Email','AdReach','Depth'];
-  var ADOPS_DEPTH_PRODUCTS = ['In-Search','Area Sponsorship','Display','Gateway','HPTO','Leaderboard','Property Sponsorship'];
-  function adopsDepthActual(m) {
-    return ADOPS_DEPTH_PRODUCTS.reduce(function(s,pn){ return s + (DATA.monthly_by_product_name[m]?.[pn]?.actual || 0); }, 0);
-  }
   var pgRows = pgs.map(function(pg){
-    var a = (pg === 'Depth') ? adopsDepthActual(mA) : (DATA.monthly_by_product_group[mA]?.[pg]?.actual || 0);
-    var b = (pg === 'Depth') ? adopsDepthActual(mB) : (DATA.monthly_by_product_group[mB]?.[pg]?.actual || 0);
-    return {label: pg === 'Depth' ? 'Depth (AdOps products)' : pg, a: a, b: b};
+    var a = DATA.monthly_by_product_group[mA]?.[pg]?.actual || 0;
+    var b = DATA.monthly_by_product_group[mB]?.[pg]?.actual || 0;
+    return {label: pg, a: a, b: b};
   });
   document.getElementById('yoy-tbl-pg').innerHTML = buildYoyTable_(pgRows, yA, yB);
 
