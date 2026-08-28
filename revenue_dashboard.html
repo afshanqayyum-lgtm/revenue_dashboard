@@ -401,7 +401,13 @@ tr:hover td{background:var(--surface2);}
         <select id="adops-capacity-month" onchange="renderAdOps()" style="min-width:110px;"></select>
       </div>
     </div>
-    <div class="chart-sub" style="margin-bottom:12px;">X: Revenue managed &nbsp;|&nbsp; Y: Effort/time score &nbsp;|&nbsp; Bubble size: number of campaigns</div>
+    <div class="chart-sub" style="margin-bottom:8px;">X: Revenue managed &nbsp;|&nbsp; Y: Effort/time score &nbsp;|&nbsp; Bubble size: number of campaigns</div>
+    <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:50%;margin-right:5px;"></span>Efficient — high revenue, low effort</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:50%;margin-right:5px;"></span>Stretched — high revenue, high effort</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:50%;margin-right:5px;"></span>Spare capacity — low revenue, low effort</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:50%;margin-right:5px;"></span>Review needed — low revenue, high effort</span>
+    </div>
     <div class="chart-wrap" style="height:380px"><canvas id="capacityChart" role="img" aria-label="Team capacity bubble chart"></canvas></div>
   </div>
 
