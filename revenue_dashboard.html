@@ -1092,7 +1092,7 @@ function mxMonths() {
   return getYrMonths(document.getElementById('mx-year')?.value || '2026');
 }
 
-function buildTableHTML(rows, months, hasTargets) {
+function buildTableHTML(rows, months, hasTargets, bucketTargets) {
   const mLabels = months.map(m=>m.split(' ')[0]);
   const COL1W = 220; // fixed width for the single sticky column (Row + Type combined)
 
@@ -1118,7 +1118,7 @@ function buildTableHTML(rows, months, hasTargets) {
     const rowBg  = isHdr ? 'var(--surface2)' : isSubHdr ? 'var(--surface)' : 'var(--card)';
     const fw     = (isHdr || isSubHdr) ? 'font-weight:600;' : '';
 
-    if (!isHdr) { r.actuals.forEach((v,i)=>totA[i]+=v); r.targets.forEach((v,i)=>totT[i]+=v); }
+    if (!isHdr) { r.actuals.forEach((v,i)=>totA[i]+=v); if (!bucketTargets) r.targets.forEach((v,i)=>totT[i]+=v); }
 
     const tA = r.actuals.reduce((s,v)=>s+v,0);
     const tT = r.targets.reduce((s,v)=>s+v,0);
@@ -1141,7 +1141,7 @@ function buildTableHTML(rows, months, hasTargets) {
       </tr>`;
     }
   });
-
+if (bucketTargets) { totT = bucketTargets.slice(); hasTargets = true; }
   const gA=totA.reduce((s,v)=>s+v,0), gT=totT.reduce((s,v)=>s+v,0);
   html += `<tr class="total-row" style="border-top:2px solid var(--border);background:var(--surface2);">
     <td class="row-label" style="${s1}var(--surface2);font-weight:700;padding:9px 10px;border-right:1px solid var(--border);">Total</td>
