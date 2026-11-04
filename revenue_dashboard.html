@@ -1492,15 +1492,14 @@ function renderMargins() {
   var eaPkgs      = DATA.margin_ea_products      || ['Bespoke Subscription','GDN','Adreach Express','Audience Connect'];
   var eaCorpPkgs  = DATA.margin_ea_corp_products || ['Facebook CPC','Facebook CPL','Facebook CTW','Bespoke Subscription'];
   var adSalesPkgs = DATA.margin_adsales_products || ['Facebook CPC','Facebook CPL','Facebook CTW'];
-  // Build unified row list: NH rows + EA Corporate + EA combined + AdSales
+  // Build unified row list: every channel shows the same 7 products.
+  // Rows with no revenue and no cost for the chosen month are hidden further down.
+  var MG_ALL_PKGS = ['Facebook CPC','Facebook CPL','Facebook CTW','GDN','Bespoke Subscription','Adreach Express','Audience Connect'];
   var allRows = [];
-  nhSegs.forEach(function(seg){
-    var segPkgs = (seg === 'NH SME') ? nhPkgs.concat(['Bespoke Subscription']) : nhPkgs;
-    allRows.push({seg:seg, pkgs:segPkgs});
-  });
-  allRows.push({seg:'EA Corporate', pkgs:eaCorpPkgs});
-  allRows.push({seg:'EA', pkgs:eaPkgs});
-  allRows.push({seg:'AdSales', pkgs:adSalesPkgs});
+  nhSegs.forEach(function(seg){ allRows.push({seg:seg, pkgs:MG_ALL_PKGS}); });
+  allRows.push({seg:'EA Corporate', pkgs:MG_ALL_PKGS});
+  allRows.push({seg:'EA', pkgs:MG_ALL_PKGS});
+  allRows.push({seg:'AdSales', pkgs:MG_ALL_PKGS});
   var segs = allRows.map(function(r){ return r.seg; });
   var pkgs = nhPkgs; // fallback
   var COL1W = 180, COL2W = 140;
@@ -1527,7 +1526,14 @@ function renderMargins() {
 
   var grandRev=0, grandCost=0;
   allRows.forEach(function(rowDef) {
-    var seg=rowDef.seg, rowPkgs=rowDef.pkgs;
+    var seg=rowDef.seg;
+    // keep only the products with revenue or cost (for the chosen month and revenue mode)
+    var rowPkgs=rowDef.pkgs.filter(function(pkg){
+      var d0=(mData[seg]||{})[pkg]||{}, c0=d0.cost||0, dr0=getMarginDraft(seg, pkg, m);
+      var r0=mgMode==='draft'?dr0:mgMode==='actual'?(d0.revenue||0):((d0.revenue||0)+dr0);
+      return r0>0 || c0>0;
+    });
+    if (!rowPkgs.length) return;   // no product has revenue or cost: hide the whole channel
     var segData=mData[seg]||{}, segRev=0, segCost=0, firstRow=true;
     rowPkgs.forEach(function(pkg) {
       var d=segData[pkg]||{revenue:0,cost:0}, actRev=d.revenue||0, cost=d.cost||0;
@@ -1755,11 +1761,12 @@ function renderYoy() {
   var eaPkgs      = DATA.margin_ea_products      || ['Bespoke Subscription','GDN','Adreach Express','Audience Connect'];
   var eaCorpPkgs  = DATA.margin_ea_corp_products || ['Facebook CPC','Facebook CPL','Facebook CTW','Bespoke Subscription'];
   var adSalesPkgs = DATA.margin_adsales_products || ['Facebook CPC','Facebook CPL','Facebook CTW'];
+  var MG_ALL_PKGS = ['Facebook CPC','Facebook CPL','Facebook CTW','GDN','Bespoke Subscription','Adreach Express','Audience Connect'];
   var marginRows = [];
-  nhSegs.forEach(function(seg){ marginRows.push({seg: seg, pkgs: (seg==='NH SME') ? nhPkgs.concat(['Bespoke Subscription']) : nhPkgs}); });
-  marginRows.push({seg:'EA Corporate', pkgs: eaCorpPkgs});
-  marginRows.push({seg:'EA', pkgs: eaPkgs});
-  marginRows.push({seg:'AdSales', pkgs: adSalesPkgs});
+  nhSegs.forEach(function(seg){ marginRows.push({seg: seg, pkgs: MG_ALL_PKGS}); });
+  marginRows.push({seg:'EA Corporate', pkgs: MG_ALL_PKGS});
+  marginRows.push({seg:'EA', pkgs: MG_ALL_PKGS});
+  marginRows.push({seg:'AdSales', pkgs: MG_ALL_PKGS});
 
   function segTotals(m, seg, pkgs) {
     var segData = (DATA.margins && DATA.margins[m] && DATA.margins[m][seg]) || {};
